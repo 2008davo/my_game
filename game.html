@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        #game-board {
+            border: 1px solid black;
+            width: 400px;
+            height: 400px;
+            margin: auto;
+            position: relative;
+        }
+        .snake {
+            width: 20px;
+            height: 20px;
+            position: absolute;
+        }
+        .snake-head {
+            background-color: green;
+            border-radius: 35%; /* Or any other styling for the head */
+        }
+        .snake-body {
+            background-color: green;
+            border-radius: 20%; /* Styling for the rest of the snake body */
+        }
+        .food {
+            width: 20px;
+            height: 20px;
+            background-color: red;
+            position: absolute;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-board"></div>
+    <div id="score">Score: 0</div>
+    <div id="best-score">Best Score: 0</div>
+    <div id="speed-buttons">
+       <button id="slow-button" data-speed="500" style="background-color: blue; color: white;">Slow</button>
+       <button id="medium-button" data-speed="200" style="background-color: blue; color: white;">Medium</button>
+       <button id="fast-button" data-speed="100" style="background-color: blue; color: white;">Fast</button>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const gameBoard = document.getElementById('game-board');
+            const scoreElement = document.getElementById('score');
+            const bestScoreElement = document.getElementById('best-score');
+            const slowButton = document.getElementById('slow-button');
+            const mediumButton = document.getElementById('medium-button');
+            const fastButton = document.getElementById('fast-button');
+            const speedButtons = [slowButton, mediumButton, fastButton];
+            const gridSize = 20;
+            let snake = [{x: 10, y: 10}];
+            let food = getRandomPosition();
+            let dx = 0;
+            let dy = 0;
+            let intervalId;
+            let score = 0;
+            let bestScore = localStorage.getItem('bestScore') || 0;
+            let paused = false;
+            let snakeSpeed = 200; // milliseconds
+
+            function getRandomPosition() {
+                return {
+                    x: Math.floor(Math.random() * gridSize),
+                    y: Math.floor(Math.random() * gridSize)
+                };
+            }
+            function getRandomColor() {
+                const letters = '0123456789ABCDEF';
+                let color = '#';
+                for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+                }
+            return color;
+            }
+
+            function drawSnake() {
+                const snakeElements = document.querySelectorAll('.snake');
+                snakeElements.forEach(element => element.remove());
+                snake.forEach((segment, index) => {
+                const snakeSegment = document.createElement('div');
+                snakeSegment.className = 'snake';
+                snakeSegment.style.left = segment.x * 20 + 'px';
+                snakeSegment.style.top = segment.y * 20 + 'px';
+                if (index === 0) {
+                    snakeSegment.classList.add('snake-head');
+                } else {
+                    snakeSegment.classList.add('snake-body');
+                }
+                snakeSegment.style.backgroundColor = getRandomColor(); // Set random color
+                gameBoard.appendChild(snakeSegment);
+                });
+            }
+
+            function drawFood() {
+                const foodElement = document.querySelector('.food');
+                if (foodElement) foodElement.remove();
+                const newFood = document.createElement('div');
+                newFood.className = 'food';
+                newFood.style.left = food.x * 20 + 'px';
+                newFood.style.top = food.y * 20 + 'px';
+                gameBoard.appendChild(newFood);
+            }
+
+            function moveSnake() {
+                if (paused) return;
+
+                const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+                snake.unshift(head);
+                if (head.x === food.x && head.y === food.y) {
+                    food = getRandomPosition();
+                    drawFood();
+                    score += 10;
+                    scoreElement.innerText = 'Score: ' + score;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        localStorage.setItem('bestScore', bestScore);
+                        bestScoreElement.innerText = 'Best Score: ' + bestScore;
+                    }
+                } else {
+                    snake.pop();
+                }
+                drawSnake();
+                if (isGameOver()) {
+                    clearInterval(intervalId);
+                    alert("Game Over! Score: " + score);
+                    restartGame();
+                }
+            }
+
+            function isGameOver() {
+                const head = snake[0];
+                return (
+                    head.x < 0 || head.x >= gridSize ||
+                    head.y < 0 || head.y >= gridSize ||
+                    snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)
+                );
+            }
+
+            function restartGame() {
+                score = 0;
+                scoreElement.innerText = 'Score: ' + score;
+                snake = [{x: 10, y: 10}];
+                dx = 0;
+                dy = 0;
+                food = getRandomPosition();
+                drawSnake();
+                drawFood();
+                intervalId = setInterval(moveSnake, snakeSpeed);
+            }
+
+            function handleKeydown(event) {
+                switch (event.key) {
+                    case 'ArrowUp':
+                        if (dy !== 1) { dx = 0; dy = -1; }
+                        break;
+                    case 'ArrowDown':
+                        if (dy !== -1) { dx = 0; dy = 1; }
+                        break;
+                    case 'ArrowLeft':
+                        if (dx !== 1) { dx = -1; dy = 0; }
+                        break;
+                    case 'ArrowRight':
+                        if (dx !== -1) { dx = 1; dy = 0; }
+                        break;
+                    case ' ':
+                        paused = !paused;
+                        if (paused) {
+                            score = 0;
+                            scoreElement.innerText = 'Score: ' + score;
+                        }
+                        break;
+                }
+            }
+
+            function startGame() {
+                intervalId = setInterval(moveSnake, snakeSpeed);
+                drawSnake();
+                drawFood();
+                bestScoreElement.innerText = 'Best Score: ' + bestScore;
+                document.addEventListener('keydown', handleKeydown);
+
+                speedButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        snakeSpeed = parseInt(this.dataset.speed);
+                        clearInterval(intervalId);
+                        intervalId = setInterval(moveSnake, snakeSpeed);
+                    });
+                });
+            }
+
+            startGame();
+        });
+    </script>
+</body>
+</html>
